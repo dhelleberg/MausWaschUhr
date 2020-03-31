@@ -15,6 +15,7 @@ const int MIN_DISTANCE = 15;
 
 const int MODE_INIT_ANIM = 1;
 const int MODE_COUNTER = 2;
+const int MODE_EFFECT = 3;
 const int MODE_OFF = 0;
 int mode = MODE_OFF;
 
@@ -23,7 +24,9 @@ boolean dimDown = true;
 int dimCounter = 0;
 
 long washStarted = 0;
-int counter = 0;
+long overAllCounterTime = 0;
+float ledFactor = 0;
+int ledCounter = -1;
 const long WASH_TIME = 20 * 1000; // 20sec
 
 UltraSonicDistanceSensor distanceSensor(15, 4);
@@ -88,27 +91,47 @@ void doFadeAnim() {
       if(dimCounter == 2) {
         mode = MODE_COUNTER;
         leds_off();
-      }
-          
+      }          
     }
   }
   for (int i = 0; i < PIXEL_COUNT; i++)
   { // For each pixel...
     leds[i].setRGB(255, 30, 0);
-    leds[i].fadeToBlackBy(dimFactor);
-    FastLED.show();    
+    leds[i].fadeToBlackBy(dimFactor);    
   }
-  delay(10);
+  FastLED.show();
+  delay(30);
 }
 
 void doClockCount() {
   //calc counter
-  long remainingSecs = (washStarted + WASH_TIME) - millis();
-  Serial.printf("remaining ms: %d\n",remainingSecs);
+  int remainingSecs = ((washStarted + WASH_TIME) - millis()) / 100;
+  Serial.printf("remaining s: %d\n",remainingSecs);  
+  if(ledCounter == -1) //now calc the overall time for the clock 
+  {
+     overAllCounterTime = remainingSecs;
+     ledFactor = (float)PIXEL_COUNT / (float)overAllCounterTime;
+     Serial.printf("ledFactor: %f overAllCounterTime %d \n",ledFactor, overAllCounterTime);
+  }
+  //calc ledCounter
+  ledCounter = (int)((overAllCounterTime - remainingSecs) * ledFactor);
+  ledCounter = ledCounter + 1;
+  if(ledCounter > PIXEL_COUNT)
+    ledCounter = PIXEL_COUNT;
+  Serial.printf("ledCounter %d\n",ledCounter);
+  for (int i = 0; i < ledCounter; i++)
+  { // For each pixel...
+    leds[i].setRGB(255, 30, 0);    
+  }
+  FastLED.show();
+  delay(20);
+
 
   if(remainingSecs <= 0) {
+    delay(100);
     leds_off();
     mode = MODE_OFF;
+    ledCounter = -1;    
   }
     
 }
