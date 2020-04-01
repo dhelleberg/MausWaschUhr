@@ -4,11 +4,22 @@
 Daraus ist die Idee entstanden eine Uhr zu bauen. Diese lässt sich durch Annährung der Hand einschalten und spielt 20 Sekunden lang die Maus-Titelmeldodie und eine LED Animation
 
 ToDo
+----
  * spassige end-animation
- * schaltplan
- * Rüxkseite lackieren??
+ * Rückseite lackieren??
+ * Powersave
 
+Partlist
+--------
+| Name             |
+|------------------|
+| ESP32 dev board  | 
+| HC-SR04 Ultrashall|  
+| DFPlayer Mini|  
+| Speaker|
+| Adafruit NeoPixel Ring 12 LEDs|  
 
 ![](img/demo.png)
+![](img/schematic.png)
 
 Youtube Video: https://youtu.be/aYoATWtipfk
