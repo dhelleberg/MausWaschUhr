@@ -2,6 +2,9 @@
 #include <HCSR04.h>
 #include "DFRobotDFPlayerMini.h"
 #include <FastLED.h>
+#include <WiFi.h>
+#include "esp_wifi.h"
+#include "esp32-hal-cpu.h"
 
 HardwareSerial hwSerial(1);
 DFRobotDFPlayerMini dfPlayer;
@@ -42,6 +45,8 @@ void leds_off() {
 void setup()
 {
   btStop();
+  WiFi.mode(WIFI_OFF);
+  esp_wifi_set_ps(WIFI_PS_MODEM);
   FastLED.addLeds<NEOPIXEL, PIXEL_PIN>(leds, PIXEL_COUNT);
   hwSerial.begin(9600, SERIAL_8N1, 17, 16); // speed, type, TX, RX
   // put your setup code here, to run once:
@@ -53,12 +58,14 @@ void setup()
     Serial.println(F("1.Please recheck the connection!"));
     Serial.println(F("2.Please insert the SD card!"));
     delay(1000);
+  
   }
   Serial.println("player online");
   dfPlayer.setTimeOut(500);
   dfPlayer.volume(volume); // Set volume value (0~30).
   dfPlayer.EQ(DFPLAYER_EQ_NORMAL);
   dfPlayer.outputDevice(DFPLAYER_DEVICE_SD);
+  dfPlayer.sleep();
   leds_off();
 }
 
@@ -131,6 +138,8 @@ void doClockCount() {
     delay(100);
     leds_off();
     mode = MODE_OFF;
+    dfPlayer.sleep();
+    setCpuFrequencyMhz(80);
     ledCounter = -1;    
   }
     
@@ -146,6 +155,8 @@ void loop()
     Serial.println(distance);
     if (distance < MIN_DISTANCE && distance > -1)
     {
+      setCpuFrequencyMhz(240);
+      dfPlayer.outputDevice(DFPLAYER_DEVICE_SD);
       mode = MODE_INIT_ANIM;
       initLEDs();
       washStarted = millis();
@@ -153,7 +164,7 @@ void loop()
       break;
     }
     else
-      delay(500);
+      delay(700);
     break;
   }
   case MODE_INIT_ANIM:
