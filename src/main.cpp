@@ -5,10 +5,19 @@
 #include <WiFi.h>
 #include "esp_wifi.h"
 #include "esp32-hal-cpu.h"
+#include "time.h"
 
 HardwareSerial hwSerial(1);
 DFRobotDFPlayerMini dfPlayer;
 int volume = 20;
+
+/*Put your SSID & Password*/
+const char* ssid = WSSID;  // Enter SSID here
+const char* password = WPWD;  //Enter Password here
+const char* ntpServer = "pool.ntp.org";
+const long  gmtOffset_sec = 0;
+const int daylightOffset_sec = 3600;
+
 
 #define PIXEL_PIN 32
 #define PIXEL_COUNT 12
@@ -26,11 +35,16 @@ int dimFactor = 0;
 boolean dimDown = true;
 int dimCounter = 0;
 
+RTC_DATA_ATTR int bootCount = 0; 
+
 long washStarted = 0;
 long overAllCounterTime = 0;
 float ledFactor = 0;
 int ledCounter = -1;
 const long WASH_TIME = 20 * 1000; // 20sec
+
+#define uS_TO_S_FACTOR 1000000  /* Conversion factor for micro seconds to seconds */
+
 
 UltraSonicDistanceSensor distanceSensor(15, 4);
 
@@ -41,17 +55,58 @@ void leds_off() {
       FastLED.show();   // Send the updated pixel colors to the hardware.
     }
 }
+bool printLocalTime(){
+  struct tm timeinfo;
+  if(!getLocalTime(&timeinfo)){
+    Serial.println("Failed to obtain time");
+    return false;
+  }
+  Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
+  return true;
+}
+
 
 void setup()
 {
   btStop();
-  WiFi.mode(WIFI_OFF);
+  
   esp_wifi_set_ps(WIFI_PS_MODEM);
   FastLED.addLeds<NEOPIXEL, PIXEL_PIN>(leds, PIXEL_COUNT);
   hwSerial.begin(9600, SERIAL_8N1, 17, 16); // speed, type, TX, RX
   // put your setup code here, to run once:
   Serial.begin(115200);
+
+  delay(500);
+  bootCount = bootCount+1;
+  Serial.printf("bootcounter %d ",bootCount);
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+  
+
+  //check wi-fi is connected to wi-fi network
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.println("WiFi connected..!");
+  Serial.print("Got IP: ");  Serial.println(WiFi.localIP());
+  bool timeOK = false;
+  while(!timeOK) {
+    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+    timeOK = printLocalTime();
+    delay(100);
+  }  
+  
+  
+  
+
+  //disconnect WiFi as it's no longer needed
+  WiFi.disconnect(true);
+  WiFi.mode(WIFI_OFF);
+  
   Serial.println("init player...");
+  
   while (!dfPlayer.begin(hwSerial))
   {
     Serial.println(F("Unable to begin:"));
@@ -65,8 +120,38 @@ void setup()
   dfPlayer.volume(volume); // Set volume value (0~30).
   dfPlayer.EQ(DFPLAYER_EQ_NORMAL);
   dfPlayer.outputDevice(DFPLAYER_DEVICE_SD);
-  dfPlayer.sleep();
+  
   leds_off();
+  
+}
+void powerDown(uint64_t sleepInMin) {
+  
+  delay(500);
+  Serial.printf("power down... for deep sleep... %d", sleepInMin);
+  const uint64_t sleepTime = sleepInMin * 60 * uS_TO_S_FACTOR;
+  esp_sleep_enable_timer_wakeup(sleepTime);
+  Serial.flush();
+  delay(100);
+  dfPlayer.reset();
+  hwSerial.end();
+  delay(100);
+  esp_deep_sleep_start(); //Gute Nacht!*/
+}
+
+void checkSleep() {
+  struct tm timeinfo;
+  if(!getLocalTime(&timeinfo)){
+    Serial.println("Failed to obtain time");
+    return;
+  }
+  int hour = timeinfo.tm_hour +1;
+  if(hour >= 20) {
+    //calc hours to sleep.
+    uint64_t hoursToSleep = 24 - hour + 6;
+    Serial.printf("going to sleep for %d hours...\n",hoursToSleep);
+    powerDown(hoursToSleep * 60);    
+  }
+
 }
 
 void initLEDs() {
@@ -133,7 +218,6 @@ void doClockCount() {
   FastLED.show();
   delay(20);
 
-
   if(remainingSecs <= 0) {
     delay(100);
     leds_off();
@@ -142,8 +226,9 @@ void doClockCount() {
     setCpuFrequencyMhz(80);
     ledCounter = -1;    
   }
-    
 }
+
+
 
 void loop()
 {
@@ -152,6 +237,7 @@ void loop()
   {
   case MODE_OFF: {
     int distance = distanceSensor.measureDistanceCm();
+    checkSleep();
     Serial.println(distance);
     if (distance < MIN_DISTANCE && distance > -1)
     {
@@ -175,6 +261,4 @@ void loop()
     break;
 
   }
-  
-  //dfPlayer.play(1);
 }
