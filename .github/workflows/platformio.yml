@@ -18,4 +18,4 @@ jobs:
     - name: Run PlatformIO
       run: platformio run
       env:
-        PLATFORMIO_BUILD_FLAGS: "-DWSSID=\"dummy\" -DWPWD=\"dummy\""
+        PLATFORMIO_BUILD_FLAGS: "'-DWSSID=\"dummy\"' '-DWPWD=\"dummy\"'"
