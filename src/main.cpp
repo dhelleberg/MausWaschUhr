@@ -9,7 +9,7 @@
 
 HardwareSerial hwSerial(1);
 DFRobotDFPlayerMini dfPlayer;
-int volume = 20;
+int volume = 10;
 
 /*Put your SSID & Password*/
 const char* ssid = WSSID;  // Enter SSID here
@@ -79,6 +79,7 @@ void setup()
   delay(500);
   bootCount = bootCount+1;
   Serial.printf("bootcounter %d ",bootCount);
+  
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   
@@ -112,8 +113,10 @@ void setup()
     Serial.println(F("Unable to begin:"));
     Serial.println(F("1.Please recheck the connection!"));
     Serial.println(F("2.Please insert the SD card!"));
+    dfPlayer.reset();
+    hwSerial.end();
     delay(1000);
-  
+    
   }
   Serial.println("player online");
   dfPlayer.setTimeOut(500);
@@ -145,11 +148,13 @@ void checkSleep() {
     return;
   }
   int hour = timeinfo.tm_hour +1;
-  if(hour >= 20) {
+  if(hour >= 20 || hour <= 6) {
     //calc hours to sleep.
     uint64_t hoursToSleep = 24 - hour + 6;
     Serial.printf("going to sleep for %d hours...\n",hoursToSleep);
-    powerDown(hoursToSleep * 60);    
+    //powerDown(hoursToSleep * 60);
+    
+    powerDown(1);
   }
 
 }
