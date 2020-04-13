@@ -69,7 +69,7 @@ bool printLocalTime(){
 void setup()
 {
   btStop();
-  
+  setCpuFrequencyMhz(80);
   //esp_wifi_set_ps(WIFI_PS_MODEM);
   FastLED.addLeds<NEOPIXEL, PIXEL_PIN>(leds, PIXEL_COUNT);
   hwSerial.begin(9600, SERIAL_8N1, 17, 16); // speed, type, TX, RX
@@ -112,9 +112,7 @@ void setup()
   {
     Serial.println(F("Unable to begin:"));
     Serial.println(F("1.Please recheck the connection!"));
-    Serial.println(F("2.Please insert the SD card!"));
-    dfPlayer.reset();
-    hwSerial.end();
+    Serial.println(F("2.Please insert the SD card!")); 
     delay(1000);
     
   }
@@ -125,6 +123,7 @@ void setup()
   dfPlayer.outputDevice(DFPLAYER_DEVICE_SD);
   
   leds_off();
+  
   
 }
 void powerDown(uint64_t sleepInMin) {
@@ -171,7 +170,7 @@ void initLEDs() {
 }
 
 void doFadeAnim() { 
-  Serial.printf("dimFactor: %d\n",dimFactor);
+  //Serial.printf("dimFactor: %d\n",dimFactor);
   if(dimDown)
     dimFactor = dimFactor - 20;
   else
@@ -203,19 +202,19 @@ void doFadeAnim() {
 void doClockCount() {
   //calc counter
   int remainingSecs = ((washStarted + WASH_TIME) - millis()) / 100;
-  Serial.printf("remaining s: %d\n",remainingSecs);  
+  //Serial.printf("remaining s: %d\n",remainingSecs);  
   if(ledCounter == -1) //now calc the overall time for the clock 
   {
      overAllCounterTime = remainingSecs;
      ledFactor = (float)PIXEL_COUNT / (float)overAllCounterTime;
-     Serial.printf("ledFactor: %f overAllCounterTime %d \n",ledFactor, overAllCounterTime);
+     //Serial.printf("ledFactor: %f overAllCounterTime %d \n",ledFactor, overAllCounterTime);
   }
   //calc ledCounter
   ledCounter = (int)((overAllCounterTime - remainingSecs) * ledFactor);
   ledCounter = ledCounter + 1;
   if(ledCounter > PIXEL_COUNT)
     ledCounter = PIXEL_COUNT;
-  Serial.printf("ledCounter %d\n",ledCounter);
+  //Serial.printf("ledCounter %d\n",ledCounter);
   for (int i = 0; i < ledCounter; i++)
   { // For each pixel...
     leds[i].setRGB(255, 30, 0);    
@@ -227,7 +226,7 @@ void doClockCount() {
     delay(100);
     leds_off();
     mode = MODE_OFF;
-    dfPlayer.sleep();
+    //dfPlayer.sleep();
     setCpuFrequencyMhz(80);
     ledCounter = -1;    
   }
@@ -246,8 +245,8 @@ void loop()
     Serial.println(distance);
     if (distance < MIN_DISTANCE && distance > -1)
     {
-      setCpuFrequencyMhz(240);
-      dfPlayer.outputDevice(DFPLAYER_DEVICE_SD);
+      //setCpuFrequencyMhz(240);
+      //dfPlayer.outputDevice(DFPLAYER_DEVICE_SD);
       mode = MODE_INIT_ANIM;
       initLEDs();
       washStarted = millis();
