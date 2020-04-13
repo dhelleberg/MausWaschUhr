@@ -9,7 +9,7 @@
 
 HardwareSerial hwSerial(1);
 DFRobotDFPlayerMini dfPlayer;
-int volume = 10;
+int volume = 17;
 
 /*Put your SSID & Password*/
 const char* ssid = WSSID;  // Enter SSID here
@@ -70,7 +70,7 @@ void setup()
 {
   btStop();
   
-  esp_wifi_set_ps(WIFI_PS_MODEM);
+  //esp_wifi_set_ps(WIFI_PS_MODEM);
   FastLED.addLeds<NEOPIXEL, PIXEL_PIN>(leds, PIXEL_COUNT);
   hwSerial.begin(9600, SERIAL_8N1, 17, 16); // speed, type, TX, RX
   // put your setup code here, to run once:
@@ -80,7 +80,7 @@ void setup()
   bootCount = bootCount+1;
   Serial.printf("bootcounter %d ",bootCount);
   
-  WiFi.mode(WIFI_STA);
+  /*WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   
 
@@ -97,7 +97,7 @@ void setup()
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
     timeOK = printLocalTime();
     delay(100);
-  }  
+  }  */
   
   
   
@@ -242,7 +242,7 @@ void loop()
   {
   case MODE_OFF: {
     int distance = distanceSensor.measureDistanceCm();
-    checkSleep();
+    //checkSleep();
     Serial.println(distance);
     if (distance < MIN_DISTANCE && distance > -1)
     {
