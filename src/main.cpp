@@ -6,6 +6,7 @@
 #include "esp_wifi.h"
 #include "esp32-hal-cpu.h"
 #include "time.h"
+#include "SoftwareSerial.h"
 
 HardwareSerial hwSerial(1);
 DFRobotDFPlayerMini dfPlayer;
@@ -48,6 +49,7 @@ const long WASH_TIME = 20 * 1000; // 20sec
 void printDetail(uint8_t type, int value);
 
 UltraSonicDistanceSensor distanceSensor(15, 4);
+SoftwareSerial mySoftwareSerial(19,18);
 
 void leds_off() {
     for (int i = 0; i < PIXEL_COUNT; i++)
@@ -76,7 +78,7 @@ void setup()
   hwSerial.begin(9600, SERIAL_8N1, 17, 16); // speed, type, TX, RX
   // put your setup code here, to run once:
   Serial.begin(115200);
-
+  mySoftwareSerial.begin(9600);
   delay(500);
   bootCount = bootCount+1;
   Serial.printf("bootcounter %d ",bootCount);
@@ -109,7 +111,7 @@ void setup()
   
   Serial.println("init player...");
   
-  while (!dfPlayer.begin(hwSerial))
+  while (!dfPlayer.begin(mySoftwareSerial))
   {
     Serial.println(F("Unable to begin:"));
     Serial.println(F("1.Please recheck the connection!"));
