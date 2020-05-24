@@ -10,7 +10,7 @@
 
 HardwareSerial hwSerial(1);
 DFRobotDFPlayerMini dfPlayer;
-int volume = 17;
+int volume = 20;
 
 /*Put your SSID & Password*/
 const char* ssid = WSSID;  // Enter SSID here
@@ -29,9 +29,11 @@ const int MIN_DISTANCE = 15;
 const int MODE_INIT_ANIM = 1;
 const int MODE_COUNTER = 2;
 const int MODE_EFFECT = 3;
+const int MODE_FINAL_ANIM = 4;
 const int MODE_OFF = 0;
 int mode = MODE_OFF;
 
+const long END_ANIM_TIME = 2 * 1000;
 int dimFactor = 0;
 boolean dimDown = true;
 int dimCounter = 0;
@@ -40,13 +42,21 @@ RTC_DATA_ATTR int bootCount = 0;
 
 long washStarted = 0;
 long overAllCounterTime = 0;
+long finalAnimStart = 0;
 float ledFactor = 0;
 int ledCounter = -1;
-const long WASH_TIME = 20 * 1000; // 20sec
+const long WASH_TIME = 18 * 1000; // 18sec
 
 #define uS_TO_S_FACTOR 1000000  /* Conversion factor for micro seconds to seconds */
 
 void printDetail(uint8_t type, int value);
+
+
+uint8_t gHue = 0; // rotating "base color" used by many of the patterns
+  
+// List of patterns to cycle through.  Each is defined as a separate function below.
+typedef void (*SimpleAnimList[])();
+int animNumber = 0;
 
 UltraSonicDistanceSensor distanceSensor(15, 4);
 SoftwareSerial mySoftwareSerial(19,18);
@@ -83,7 +93,7 @@ void setup()
   bootCount = bootCount+1;
   Serial.printf("bootcounter %d ",bootCount);
   
-  /*WiFi.mode(WIFI_STA);
+  WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   
 
@@ -100,9 +110,9 @@ void setup()
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
     timeOK = printLocalTime();
     delay(100);
-  }  */
+  }
   
-  
+  randomSeed(analogRead(0));
   
 
   //disconnect WiFi as it's no longer needed
@@ -115,18 +125,18 @@ void setup()
   {
     Serial.println(F("Unable to begin:"));
     Serial.println(F("1.Please recheck the connection!"));
-    Serial.println(F("2.Please insert the SD card!")); 
-    delay(1000);
-    
+    Serial.println(F("2.Please insert the SD card!"));     
+    delay(500);  
   }
   Serial.println("player online");
   dfPlayer.setTimeOut(500);
+  delay(100);
   dfPlayer.volume(volume); // Set volume value (0~30).
   dfPlayer.EQ(DFPLAYER_EQ_NORMAL);
+  delay(100);
   dfPlayer.outputDevice(DFPLAYER_DEVICE_SD);
-  
+  delay(100);
   leds_off();
-  
   
 }
 void powerDown(uint64_t sleepInMin) {
@@ -154,9 +164,8 @@ void checkSleep() {
     //calc hours to sleep.
     uint64_t hoursToSleep = 24 - hour + 6;
     Serial.printf("going to sleep for %d hours...\n",hoursToSleep);
-    //powerDown(hoursToSleep * 60);
-    
-    powerDown(1);
+    powerDown(hoursToSleep * 60);    
+    //powerDown(1);
   }
 
 }
@@ -226,14 +235,69 @@ void doClockCount() {
   delay(20);
 
   if(remainingSecs <= 0) {
+    esp_random();
     delay(100);
     leds_off();
-    mode = MODE_OFF;
-    //dfPlayer.sleep();
-    //setCpuFrequencyMhz(80);
+    mode = MODE_FINAL_ANIM;
+    animNumber = random(0,3);
+    finalAnimStart = millis();
+    setCpuFrequencyMhz(80);
     ledCounter = -1;    
   }
 }
+
+void anim_confetti() 
+{
+  Serial.println("render confetti");
+  EVERY_N_MILLISECONDS( 2 ) { gHue++; } // slowly cycle the "base color" through the rainbow
+  // random colored speckles that blink in and fade smoothly
+  fadeToBlackBy( leds, PIXEL_COUNT, 10);
+  int pos = random16(PIXEL_COUNT);
+  leds[pos] += CHSV( gHue + random8(64), 200, 255);
+  FastLED.show();
+  delay(20);
+}
+
+void anim_juggle() {
+  Serial.println("render juggle");
+  EVERY_N_MILLISECONDS( 2 ) { gHue++; } // slowly cycle the "base color" through the rainbow
+  // eight colored dots, weaving in and out of sync with each other
+  fadeToBlackBy( leds, PIXEL_COUNT, 20);
+  byte dothue = 0;
+  for( int i = 0; i < 8; i++) {
+    leds[beatsin16( i+7, 0, PIXEL_COUNT-1 )] |= CHSV(dothue, 200, 255);
+    dothue += 32;
+  }
+  FastLED.show();
+  delay(20);
+
+}
+
+void anim_rainbow() {
+  Serial.println("render rainbow");
+  // do some periodic updates
+  EVERY_N_MILLISECONDS( 2 ) { gHue++; } // slowly cycle the "base color" through the rainbow
+  fill_rainbow( leds, PIXEL_COUNT, gHue, 7);
+  FastLED.show();
+  delay(5);
+
+}
+
+void renderFinalAnim() {
+  SimpleAnimList animations = { anim_rainbow, anim_confetti, anim_juggle };
+
+  Serial.printf("render final Anim nr: %d\n",animNumber);
+  animations[animNumber]();
+  if(finalAnimStart + END_ANIM_TIME <= millis()) {
+    Serial.println("DONE STOP!");
+    delay(100);
+    leds_off();
+    mode = MODE_OFF;    
+    setCpuFrequencyMhz(80);
+    ledCounter = -1;    
+  }
+}
+
 
 
 
@@ -248,8 +312,8 @@ void loop()
     Serial.println(distance);
     if (distance < MIN_DISTANCE && distance > -1)
     {
-      //setCpuFrequencyMhz(240);
-      //dfPlayer.outputDevice(DFPLAYER_DEVICE_SD);
+      setCpuFrequencyMhz(240);
+      
       mode = MODE_INIT_ANIM;
       initLEDs();
       washStarted = millis();
@@ -266,12 +330,16 @@ void loop()
   case MODE_COUNTER:
     doClockCount();
     break;
+  case MODE_FINAL_ANIM:
+    renderFinalAnim();
+    break;
+
+
   }
   if (dfPlayer.available()) {
     printDetail(dfPlayer.readType(), dfPlayer.read()); //Print the detail message from DFPlayer to handle different errors and states.
   }
 }
-
 
 
 
